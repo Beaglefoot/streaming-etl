@@ -1,0 +1,11 @@
+.venv/
+
+.vscode/
+.dbeaver/
+.project
+
+__pycache__/
+*.py[cod]
+*$py.class
+*.pickle
+
