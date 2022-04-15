@@ -68,3 +68,24 @@ async def fetch_all_calls(pool: Pool) -> AsyncGenerator[Call, None]:
 
         async for row in db_conn.cursor(sql):
             yield Call(row["start_time"], row["end_time"], call_id=row["call_id"])
+
+
+async def fetch_random_calls(amount: int, pool: Pool) -> AsyncGenerator[Call, None]:
+    sql = """
+    SELECT
+        call_id,
+        start_time,
+        end_time
+    FROM "call" TABLESAMPLE BERNOULLI(50)
+    LIMIT $1;
+    """
+
+    async with pool.acquire() as db_conn, db_conn.transaction():
+        db_conn: Connection
+
+        async for row in db_conn.cursor(sql, amount):
+            yield Call(
+                row["start_time"],
+                row["end_time"],
+                call_id=row["call_id"],
+            )

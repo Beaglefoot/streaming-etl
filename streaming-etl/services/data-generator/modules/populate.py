@@ -8,9 +8,25 @@ from modules.user import (
     generate_user,
     upload_user,
 )
-from modules.room import fetch_room_count, generate_room, upload_room
-from modules.call import fetch_all_calls, fetch_call_count, generate_call, upload_call
-from modules.call_participant import generate_call_participant, upload_call_participant
+from modules.room import (
+    fetch_random_room_before_date,
+    fetch_room_count,
+    generate_room,
+    upload_room,
+)
+from modules.call import (
+    fetch_all_calls,
+    fetch_call_count,
+    fetch_random_calls,
+    generate_call,
+    upload_call,
+)
+from modules.call_participant import (
+    fetch_call_participant_empty,
+    generate_call_participant,
+    upload_call_participant,
+)
+from modules.room_call import fetch_room_call_empty, upload_room_call
 
 
 async def populate_user(pool: Pool) -> None:
@@ -47,6 +63,9 @@ async def populate_call(pool: Pool) -> None:
 
 
 async def populate_call_participant(pool: Pool) -> None:
+    if not await fetch_call_participant_empty(pool):
+        return
+
     async for call in fetch_all_calls(pool):
         participants_count = ceil(sum(random() for _ in range(4)))
 
@@ -60,8 +79,22 @@ async def populate_call_participant(pool: Pool) -> None:
         await exec_concurrently(uploads_gen, participants_count)
 
 
+async def populate_room_call(pool: Pool) -> None:
+    if not await fetch_room_call_empty(pool):
+        return
+
+    async for call in fetch_random_calls(500, pool):
+        room = await fetch_random_room_before_date(call.start_time, pool)
+
+        if room == None:
+            continue
+
+        await upload_room_call(room, call, pool)
+
+
 async def populate_tables(pool: Pool) -> None:
     await populate_user(pool)
     await populate_room(pool)
     await populate_call(pool)
     await populate_call_participant(pool)
+    await populate_room_call(pool)

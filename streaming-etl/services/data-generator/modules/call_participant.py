@@ -43,3 +43,12 @@ async def upload_call_participant(cp: CallParticipant, pool: Pool) -> None:
         print(
             f'uploaded new call_participant with call_id: {row["call_id"]} and user_id: {row["user_id"]}'
         )
+
+
+async def fetch_call_participant_empty(pool: Pool) -> bool:
+    async with pool.acquire() as db_conn:
+        db_conn: Connection
+
+        row = await db_conn.fetchrow("SELECT call_id FROM call_participant LIMIT 1;")
+
+        return not bool(row)
