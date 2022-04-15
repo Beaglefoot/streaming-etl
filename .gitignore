@@ -2,6 +2,7 @@
 
 .vscode/
 .dbeaver/
+Scripts/
 .project
 
 __pycache__/

@@ -1,23 +1,22 @@
-import psycopg2
-import os
+import asyncio
+
+from modules.db_connection import get_db_connection_pool
+from modules.user import generate_user, upload_user
+from modules.populate import populate_tables
+from modules.utils import exec_concurrently
 
 
-def main():
-    host = os.getenv("POSTGRES_HOST")
-    database = os.getenv("POSTGRES_DB")
-    user = os.getenv("POSTGRES_USER")
-    password = os.getenv("POSTGRES_PASSWORD")
+async def main():
+    pool = await get_db_connection_pool()
 
-    db_connection = psycopg2.connect(
-        host=host, database=database, user=user, password=password
-    )
+    await populate_tables(pool)
 
-    with db_connection.cursor() as cur:
-        cur.execute("SELECT version()")
-        db_version = cur.fetchone()
+    infinite_gen = (upload_user(generate_user(), pool) for _ in iter(int, 1))
 
-        print(f"--- postgres version: {db_version} ---")
+    # await exec_concurrently(infinite_gen, pool.get_size())
+
+    await pool.close()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
