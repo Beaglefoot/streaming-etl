@@ -5,6 +5,7 @@ from faker import Faker
 from asyncpg import NoDataFoundError, Pool, Connection
 from modules.call import Call
 from modules.user import User
+from modules.logger import LOGGER
 
 _fake = Faker()
 
@@ -40,8 +41,10 @@ async def upload_call_participant(cp: CallParticipant, pool: Pool) -> None:
         if row == None:
             raise NoDataFoundError
 
-        print(
-            f'uploaded new call_participant with call_id: {row["call_id"]} and user_id: {row["user_id"]}'
+        LOGGER.debug(
+            "uploaded new call_participant with call_id: %s and user_id: %s",
+            row["call_id"],
+            row["user_id"],
         )
 
 

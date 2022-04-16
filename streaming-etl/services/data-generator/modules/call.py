@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import AsyncGenerator, Generator, Iterable, Literal, Optional, Union
+from typing import AsyncGenerator, Optional
 from faker import Faker
 from asyncpg import NoDataFoundError, Pool, Connection
+from modules.logger import LOGGER
 
 _fake = Faker()
 
@@ -39,7 +40,7 @@ async def upload_call(call: CallPartial, pool: Pool) -> None:
         if row == None:
             raise NoDataFoundError
 
-        print("uploaded new call with id: ", row["call_id"])
+        LOGGER.debug("uploaded new call with id: %s", row["call_id"])
 
 
 async def fetch_call_count(pool: Pool) -> int:

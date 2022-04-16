@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Iterable
 from faker import Faker
 from asyncpg import NoDataFoundError, Pool, Connection
+from modules.logger import LOGGER
 
 _fake = Faker()
 
@@ -36,7 +37,7 @@ async def upload_user(user: UserPartial, pool: Pool) -> None:
         if row == None:
             raise NoDataFoundError
 
-        print("uploaded new user with id: ", row["user_id"])
+        LOGGER.debug("uploaded new user with id: %s", row["user_id"])
 
 
 async def fetch_random_users(amount: int, pool: Pool) -> Iterable[User]:

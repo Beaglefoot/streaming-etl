@@ -27,6 +27,7 @@ from modules.call_participant import (
     upload_call_participant,
 )
 from modules.room_call import fetch_room_call_empty, upload_room_call
+from modules.logger import LOGGER
 
 
 async def populate_user(pool: Pool) -> None:
@@ -36,6 +37,8 @@ async def populate_user(pool: Pool) -> None:
     user_count = target_user_count - existing_user_count
 
     uploads_gen = (upload_user(generate_user(), pool) for _ in range(user_count))
+
+    LOGGER.info("Populating user table. Records to add: %s", user_count)
 
     await exec_concurrently(uploads_gen, pool.get_size())
 
@@ -48,6 +51,8 @@ async def populate_room(pool: Pool) -> None:
 
     uploads_gen = (upload_room(generate_room(), pool) for _ in range(room_count))
 
+    LOGGER.info("Populating room table. Records to add: %s", room_count)
+
     await exec_concurrently(uploads_gen, pool.get_size())
 
 
@@ -59,12 +64,17 @@ async def populate_call(pool: Pool) -> None:
 
     uploads_gen = (upload_call(generate_call(), pool) for _ in range(call_count))
 
+    LOGGER.info("Populating call table. Records to add: %s", call_count)
+
     await exec_concurrently(uploads_gen, pool.get_size())
 
 
 async def populate_call_participant(pool: Pool) -> None:
     if not await fetch_call_participant_empty(pool):
+        LOGGER.info("call_participant table is already populted")
         return
+
+    LOGGER.info("Populating call_participant table for existing calls")
 
     async for call in fetch_all_calls(pool):
         participants_count = ceil(sum(random() for _ in range(4)))
@@ -81,9 +91,16 @@ async def populate_call_participant(pool: Pool) -> None:
 
 async def populate_room_call(pool: Pool) -> None:
     if not await fetch_room_call_empty(pool):
+        LOGGER.info("room_call table is already populted")
         return
 
-    async for call in fetch_random_calls(500, pool):
+    slice_size = 500
+
+    LOGGER.info(
+        "Populating room_call table for random calls (capped with %s calls)", slice_size
+    )
+
+    async for call in fetch_random_calls(slice_size, pool):
         room = await fetch_random_room_before_date(call.start_time, pool)
 
         if room == None:

@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from faker import Faker
 from asyncpg import NoDataFoundError, Pool, Connection
+from modules.logger import LOGGER
 
 _fake = Faker()
 
@@ -42,7 +43,7 @@ async def upload_room(room: RoomPartial, pool: Pool) -> None:
         if row == None:
             raise NoDataFoundError
 
-        print("uploaded new room with id: ", row["room_id"])
+        LOGGER.debug("uploaded new room with id: %s", row["room_id"])
 
 
 async def fetch_room_count(pool: Pool) -> int:

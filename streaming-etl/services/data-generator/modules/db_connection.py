@@ -2,6 +2,7 @@ import os
 import asyncpg
 
 from asyncpg import ClientCannotConnectError, NoDataFoundError, Pool
+from modules.logger import LOGGER
 
 _host = os.getenv("POSTGRES_HOST")
 _database = os.getenv("POSTGRES_DB")
@@ -22,7 +23,7 @@ async def get_db_connection_pool() -> Pool:
     if pool == None:
         raise ClientCannotConnectError
 
-    print(f"Established DB connection pool: {_host}")
+    LOGGER.info("Established DB connection pool: %s", _host)
 
     async with pool.acquire() as conn:
         db_version = await conn.fetchrow("SELECT version()")
@@ -30,6 +31,6 @@ async def get_db_connection_pool() -> Pool:
         if db_version == None:
             raise NoDataFoundError
 
-        print("DB version:", db_version["version"])
+        LOGGER.info("DB version: %s", db_version["version"])
 
     return pool

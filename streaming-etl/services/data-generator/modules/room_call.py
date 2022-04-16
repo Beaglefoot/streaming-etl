@@ -1,6 +1,7 @@
-from asyncpg import NoDataFoundError, Pool, Connection
+from asyncpg import Pool, Connection
 from modules.room import Room
 from modules.call import Call
+from modules.logger import LOGGER
 
 
 async def upload_room_call(room: Room, call: Call, pool: Pool) -> None:
@@ -14,8 +15,10 @@ async def upload_room_call(room: Room, call: Call, pool: Pool) -> None:
 
         await db_conn.fetchrow(sql, room.room_id, call.call_id)
 
-        print(
-            f"uploaded new room_call with room_id: {room.room_id} and call_id: {call.call_id}"
+        LOGGER.debug(
+            "uploaded new room_call with room_id: %s and call_id: %s",
+            room.room_id,
+            call.call_id,
         )
 
 
