@@ -10,14 +10,14 @@ _user = os.getenv("POSTGRES_USER")
 _password = os.getenv("POSTGRES_PASSWORD")
 
 
-async def get_db_connection_pool() -> Pool:
+async def get_db_connection_pool(size: int) -> Pool:
     pool = await asyncpg.create_pool(
         host=_host,
         database=_database,
         user=_user,
         password=_password,
-        min_size=10,
-        max_size=10,
+        min_size=size,
+        max_size=size,
     )
 
     if pool == None:

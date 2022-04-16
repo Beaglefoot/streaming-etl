@@ -26,7 +26,7 @@ def generate_call() -> CallPartial:
     return CallPartial(start_time=date1, end_time=date2)
 
 
-async def upload_call(call: CallPartial, pool: Pool) -> None:
+async def upload_call(call: CallPartial, pool: Pool) -> Call:
     sql = """
     INSERT INTO "call" (start_time, end_time)
     VALUES ($1, $2) RETURNING call_id;
@@ -41,6 +41,8 @@ async def upload_call(call: CallPartial, pool: Pool) -> None:
             raise NoDataFoundError
 
         LOGGER.debug("uploaded new call with id: %s", row["call_id"])
+
+    return Call(call.start_time, call.end_time, call_id=row["call_id"])
 
 
 async def fetch_call_count(pool: Pool) -> int:
@@ -90,3 +92,16 @@ async def fetch_random_calls(amount: int, pool: Pool) -> AsyncGenerator[Call, No
                 row["end_time"],
                 call_id=row["call_id"],
             )
+
+
+async def update_call_end_time(call_id: int, end_time: datetime, pool: Pool) -> None:
+    sql = """
+    UPDATE "call"
+    SET end_time = $2
+    WHERE call_id = $1
+    """
+
+    async with pool.acquire() as db_conn:
+        db_conn: Connection
+
+        await db_conn.execute(sql, call_id, end_time)

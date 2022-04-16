@@ -1,7 +1,5 @@
-from math import ceil
-from random import random
 from asyncpg import Pool
-from modules.utils import exec_concurrently
+from modules.utils import exec_concurrently, get_ndist_random
 from modules.user import (
     fetch_random_users,
     fetch_user_count,
@@ -77,7 +75,7 @@ async def populate_call_participant(pool: Pool) -> None:
     LOGGER.info("Populating call_participant table for existing calls")
 
     async for call in fetch_all_calls(pool):
-        participants_count = ceil(sum(random() for _ in range(4)))
+        participants_count = get_ndist_random(4)
 
         users = await fetch_random_users(participants_count, pool)
 
