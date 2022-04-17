@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterator
 from faker import Faker
 from asyncpg import NoDataFoundError, Pool, Connection
 from modules.logger import LOGGER
@@ -42,7 +42,7 @@ async def upload_user(user: UserPartial, pool: Pool) -> User:
     return User(user.first_name, user.last_name, user.email, row["user_id"])
 
 
-async def fetch_random_users(amount: int, pool: Pool) -> Iterable[User]:
+async def fetch_random_users(amount: int, pool: Pool) -> Iterator[User]:
     sql = """
     SELECT
         user_id,
@@ -79,3 +79,18 @@ async def fetch_user_count(pool: Pool) -> int:
             raise NoDataFoundError
 
         return val
+
+
+async def update_user_email(user: User, pool: Pool) -> None:
+    sql = """
+    UPDATE "user"
+    SET email = $2
+    WHERE user_id = $1
+    """
+
+    async with pool.acquire() as db_conn:
+        db_conn: Connection
+
+        await db_conn.execute(sql, user.user_id, user.email)
+
+        LOGGER.debug("updated email for user with id: %s", user.user_id)

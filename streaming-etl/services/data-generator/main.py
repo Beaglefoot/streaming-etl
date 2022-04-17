@@ -3,6 +3,7 @@ import asyncio
 from modules.db_connection import get_db_connection_pool
 from modules.emulate_call import emulate_call
 from modules.emulate_registration import emulate_registration
+from modules.emulate_user_edit import emulate_user_edit
 from modules.populate import populate_tables
 from modules.utils import ProbabilityRangeFn, decide_on_random, exec_concurrently
 
@@ -15,6 +16,7 @@ async def main():
     decisions = [
         ProbabilityRangeFn(0, 0.2, lambda: emulate_call(pool)),
         ProbabilityRangeFn(0.2, 0.215, lambda: emulate_registration(pool)),
+        ProbabilityRangeFn(0.215, 0.218, lambda: emulate_user_edit(pool)),
     ]
 
     infinite_gen = (
