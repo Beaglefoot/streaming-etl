@@ -23,7 +23,7 @@ def generate_user() -> UserPartial:
     return UserPartial(_fake.first_name(), _fake.last_name(), _fake.email())
 
 
-async def upload_user(user: UserPartial, pool: Pool) -> None:
+async def upload_user(user: UserPartial, pool: Pool) -> User:
     sql = """
     INSERT INTO "user" (first_name, last_name, email)
     VALUES ($1, $2, $3) RETURNING user_id;
@@ -38,6 +38,8 @@ async def upload_user(user: UserPartial, pool: Pool) -> None:
             raise NoDataFoundError
 
         LOGGER.debug("uploaded new user with id: %s", row["user_id"])
+
+    return User(user.first_name, user.last_name, user.email, row["user_id"])
 
 
 async def fetch_random_users(amount: int, pool: Pool) -> Iterable[User]:

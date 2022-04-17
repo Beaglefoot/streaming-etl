@@ -1,10 +1,10 @@
 import asyncio
-from random import random
 
 from modules.db_connection import get_db_connection_pool
 from modules.emulate_call import emulate_call
+from modules.emulate_registration import emulate_registration
 from modules.populate import populate_tables
-from modules.utils import exec_concurrently
+from modules.utils import ProbabilityRangeFn, decide_on_random, exec_concurrently
 
 
 async def main():
@@ -12,8 +12,13 @@ async def main():
 
     await populate_tables(pool)
 
+    decisions = [
+        ProbabilityRangeFn(0, 0.2, lambda: emulate_call(pool)),
+        ProbabilityRangeFn(0.2, 0.215, lambda: emulate_registration(pool)),
+    ]
+
     infinite_gen = (
-        emulate_call(pool) if random() > 0.8 else asyncio.sleep(1) for _ in iter(int, 1)
+        decide_on_random(decisions, lambda: asyncio.sleep(1)) for _ in iter(int, 1)
     )
 
     await exec_concurrently(infinite_gen, pool.get_size())
