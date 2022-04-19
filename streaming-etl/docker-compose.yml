@@ -3,14 +3,15 @@ version: '3'
 services:
   app-db:
     image: postgres:14
-    restart: on-failure
+    hostname: app-db
     ports:
       - 5432:5432
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     volumes:
-      - ./services/app-db:/docker-entrypoint-initdb.d
+      - ./services/app-db/init-scripts:/docker-entrypoint-initdb.d
+      - ./services/app-db/postgres.conf:/usr/share/postgresql/postgresql.conf.sample
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 5s
@@ -19,7 +20,7 @@ services:
   data-generator:
     build:
       context: ./services/data-generator
-    restart: on-failure
+    hostname: data-generator
     environment:
       - POSTGRES_HOST=app-db
       - POSTGRES_DB=postgres
@@ -28,3 +29,60 @@ services:
     depends_on:
       app-db:
         condition: service_healthy
+
+  zookeeper:
+    image: bitnami/zookeeper:3.7
+    hostname: zookeeper
+    ports:
+      - 2181:2181
+    volumes:
+      - zookeeper_data:/bitnami
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+
+  kafka:
+    image: bitnami/kafka:3
+    hostname: kafka
+    ports:
+      - 9092:9092
+    volumes:
+      - kafka_data:/bitnami
+    environment:
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=INTERNAL://:29092,EXTERNAL://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=INTERNAL://kafka:29092,EXTERNAL://localhost:9092
+      - KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL
+    depends_on:
+      - zookeeper
+    healthcheck:
+      test:
+        ["CMD", "kafka-topics.sh", "--list", "--bootstrap-server", "kafka:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+
+  kafka-connect:
+    image: debezium/connect:1.9
+    hostname: kafka-connect
+    ports:
+      - 8083:8083
+    environment:
+      - BOOTSTRAP_SERVERS=kafka:29092
+      - GROUP_ID=1
+      - CONFIG_STORAGE_TOPIC=app_db_connect_configs
+      - OFFSET_STORAGE_TOPIC=app_db_connect_offsets
+      - STATUS_STORAGE_TOPIC=app_db_connect_statuses
+    depends_on:
+      - zookeeper
+      - kafka
+      - app-db
+    
+
+volumes:
+  zookeeper_data:
+    driver: local
+
+  kafka_data:
+    driver: local
