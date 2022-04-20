@@ -69,16 +69,34 @@ services:
     ports:
       - 8083:8083
     environment:
+      - ENABLE_APICURIO_CONVERTERS=true
       - BOOTSTRAP_SERVERS=kafka:29092
       - GROUP_ID=1
       - CONFIG_STORAGE_TOPIC=app_db_connect_configs
       - OFFSET_STORAGE_TOPIC=app_db_connect_offsets
       - STATUS_STORAGE_TOPIC=app_db_connect_statuses
+      - CONNECT_KEY_CONVERTER=io.apicurio.registry.utils.converter.AvroConverter
+      - CONNECT_KEY_CONVERTER_APICURIO.REGISTRY_URL=http://apicurio:8080/apis/registry/v2
+      - CONNECT_KEY_CONVERTER_APICURIO_REGISTRY_AUTO-REGISTER=true
+      - CONNECT_KEY_CONVERTER_APICURIO_REGISTRY_FIND-LATEST=true
+      - CONNECT_VALUE_CONVERTER=io.apicurio.registry.utils.converter.AvroConverter
+      - CONNECT_VALUE_CONVERTER_APICURIO_REGISTRY_URL=http://apicurio:8080/apis/registry/v2
+      - CONNECT_VALUE_CONVERTER_APICURIO_REGISTRY_AUTO-REGISTER=true
+      - CONNECT_VALUE_CONVERTER_APICURIO_REGISTRY_FIND-LATEST=true
     depends_on:
       - zookeeper
       - kafka
+      - schema-registry
       - app-db
-    
+
+  schema-registry:
+    image: apicurio/apicurio-registry-mem:2.2.3.Final
+    hostname: schema-registry
+    depends_on:
+      - kafka
+    ports:
+      - 8080:8080
+
 
 volumes:
   zookeeper_data:
