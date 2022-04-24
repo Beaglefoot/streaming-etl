@@ -12,6 +12,7 @@ services:
     volumes:
       - ./services/app-db/init-scripts:/docker-entrypoint-initdb.d
       - ./services/app-db/postgres.conf:/usr/share/postgresql/postgresql.conf.sample
+      - app_db_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 5s
@@ -56,33 +57,26 @@ services:
       - KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL
     depends_on:
       - zookeeper
-    healthcheck:
-      test:
-        ["CMD", "kafka-topics.sh", "--list", "--bootstrap-server", "kafka:9092"]
-      interval: 10s
-      timeout: 10s
-      retries: 6
 
   kafka-connect:
-    image: debezium/connect:1.9
+    build:
+      context: ./services/kafka-connect
     hostname: kafka-connect
     ports:
       - 8083:8083
     environment:
-      - ENABLE_APICURIO_CONVERTERS=true
-      - BOOTSTRAP_SERVERS=kafka:29092
-      - GROUP_ID=1
-      - CONFIG_STORAGE_TOPIC=app_db_connect_configs
-      - OFFSET_STORAGE_TOPIC=app_db_connect_offsets
-      - STATUS_STORAGE_TOPIC=app_db_connect_statuses
-      - CONNECT_KEY_CONVERTER=io.apicurio.registry.utils.converter.ExtJsonConverter
-      - CONNECT_KEY_CONVERTER_APICURIO.REGISTRY_URL=http://apicurio:8080/apis/registry/v2
-      - CONNECT_KEY_CONVERTER_APICURIO_REGISTRY_AUTO-REGISTER=true
-      - CONNECT_KEY_CONVERTER_APICURIO_REGISTRY_FIND-LATEST=true
-      - CONNECT_VALUE_CONVERTER=io.apicurio.registry.utils.converter.ExtJsonConverter
-      - CONNECT_VALUE_CONVERTER_APICURIO_REGISTRY_URL=http://apicurio:8080/apis/registry/v2
-      - CONNECT_VALUE_CONVERTER_APICURIO_REGISTRY_AUTO-REGISTER=true
-      - CONNECT_VALUE_CONVERTER_APICURIO_REGISTRY_FIND-LATEST=true
+      - CONNECT_BOOTSTRAP_SERVERS=kafka:29092
+      - CONNECT_GROUP_ID=1
+      - CONNECT_REST_ADVERTISED_HOST_NAME=kafka-connect
+      - CONNECT_CONFIG_STORAGE_TOPIC=app_db_connect_configs
+      - CONNECT_OFFSET_STORAGE_TOPIC=app_db_connect_offsets
+      - CONNECT_STATUS_STORAGE_TOPIC=app_db_connect_statuses
+      - CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR=1
+      - CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR=1
+      - CONNECT_STATUS_STORAGE_REPLICATION_FACTOR=1
+      - CONNECT_KEY_CONVERTER=org.apache.kafka.connect.storage.StringConverter
+      - CONNECT_VALUE_CONVERTER=io.confluent.connect.json.JsonSchemaConverter
+      - CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL=http://schema-registry:8081
     depends_on:
       - zookeeper
       - kafka
@@ -90,15 +84,24 @@ services:
       - app-db
 
   schema-registry:
-    image: apicurio/apicurio-registry-mem:2.2.3.Final
+    image: confluentinc/cp-schema-registry:7.1.1
     hostname: schema-registry
+    ports:
+      - 8081:8081
+    volumes:
+      - ./wait-for-it.sh:/usr/bin/wait-for-it.sh
+    environment:
+      - SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS=kafka:29092
+      - SCHEMA_REGISTRY_HOST_NAME=schema-registry
     depends_on:
       - kafka
-    ports:
-      - 8080:8080
+    command: ["wait-for-it.sh", "kafka:29092", "-t", "10", "--", "/etc/confluent/docker/run"]
 
 
 volumes:
+  app_db_data:
+    driver: local
+
   zookeeper_data:
     driver: local
 
