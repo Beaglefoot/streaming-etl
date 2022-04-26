@@ -10,6 +10,6 @@ while read topic; do
 
     poetry run datamodel-codegen \
         --url http://localhost:8081/subjects/${topic}/versions/latest/schema \
-        --output models/${model_name}.py \
+        --output models/generated/${model_name}.py \
         --strip-default-none
 done

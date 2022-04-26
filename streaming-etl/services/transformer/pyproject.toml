@@ -8,6 +8,7 @@ authors = ["Beaglefoot <ch-e-st@yandex.ru>"]
 python = "^3.8"
 aiokafka = "^0.7.2"
 pydantic = "^1.9.0"
+python-schema-registry-client = "^2.4.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.3.0"
