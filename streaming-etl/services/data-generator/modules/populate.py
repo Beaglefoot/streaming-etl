@@ -1,4 +1,5 @@
 from asyncpg import Pool
+from modules.room_member import fetch_room_member_empty, upload_room_member
 from modules.utils import exec_concurrently, get_ndist_random
 from modules.user import (
     fetch_random_users,
@@ -7,6 +8,7 @@ from modules.user import (
     upload_user,
 )
 from modules.room import (
+    fetch_all_rooms,
     fetch_random_room_before_date,
     fetch_room_count,
     generate_room,
@@ -107,9 +109,27 @@ async def populate_room_call(pool: Pool) -> None:
         await upload_room_call(room, call, pool)
 
 
+async def populate_room_member(pool: Pool) -> None:
+    if not await fetch_room_member_empty(pool):
+        LOGGER.info("room_member table is already populted")
+        return
+
+    LOGGER.info("Populating room_member table with random users")
+
+    async for room in fetch_all_rooms(pool):
+        members_count = get_ndist_random(10)
+
+        users = await fetch_random_users(members_count, pool)
+
+        uploads_gen = (upload_room_member(room, user, pool) for user in users)
+
+        await exec_concurrently(uploads_gen, members_count)
+
+
 async def populate_tables(pool: Pool) -> None:
     await populate_user(pool)
     await populate_room(pool)
     await populate_call(pool)
     await populate_call_participant(pool)
     await populate_room_call(pool)
+    await populate_room_member(pool)

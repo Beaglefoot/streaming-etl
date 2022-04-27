@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import AsyncGenerator, Optional
 from faker import Faker
 from asyncpg import NoDataFoundError, Pool, Connection
 from modules.logger import LOGGER
@@ -84,3 +84,19 @@ async def fetch_random_room_before_date(date: datetime, pool: Pool) -> Optional[
             row["foundation_time"],
             room_id=row["room_id"],
         )
+
+async def fetch_all_rooms(pool: Pool) -> AsyncGenerator[Room, None]:
+    sql = """
+    SELECT
+        room_id,
+        title,
+        description,
+        foundation_time
+    FROM "room"
+    """
+
+    async with pool.acquire() as db_conn, db_conn.transaction():
+        db_conn: Connection
+
+        async for row in db_conn.cursor(sql):
+            yield Room(row["title"], row["description"], row["description"], room_id=row["room_id"])
