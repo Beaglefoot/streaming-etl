@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Iterator
 from faker import Faker
 from asyncpg import NoDataFoundError, Pool, Connection
@@ -9,9 +10,11 @@ _fake = Faker()
 
 @dataclass
 class UserPartial:
+    username: str
     first_name: str
     last_name: str
     email: str
+    registration_time: datetime
 
 
 @dataclass
@@ -20,35 +23,60 @@ class User(UserPartial):
 
 
 def generate_user() -> UserPartial:
-    return UserPartial(_fake.first_name(), _fake.last_name(), _fake.email())
+    date1 = datetime(datetime.now().year, 1, 1) - timedelta(weeks=8)
+    date2 = datetime.now() - timedelta(weeks=1)
+
+    return UserPartial(
+        _fake.unique.user_name(),
+        _fake.first_name(),
+        _fake.last_name(),
+        _fake.email(),
+        _fake.date_time_between(date1, date2),
+    )
 
 
 async def upload_user(user: UserPartial, pool: Pool) -> User:
     sql = """
-    INSERT INTO "user" (first_name, last_name, email)
-    VALUES ($1, $2, $3) RETURNING user_id;
+    INSERT INTO "user" (username, first_name, last_name, email, registration_time)
+    VALUES ($1, $2, $3, $4, $5) RETURNING user_id;
     """
 
     async with pool.acquire() as db_conn:
         db_conn: Connection
 
-        row = await db_conn.fetchrow(sql, user.first_name, user.last_name, user.email)
+        row = await db_conn.fetchrow(
+            sql,
+            user.username,
+            user.first_name,
+            user.last_name,
+            user.email,
+            user.registration_time,
+        )
 
         if row == None:
             raise NoDataFoundError
 
         LOGGER.debug("uploaded new user with id: %s", row["user_id"])
 
-    return User(user.first_name, user.last_name, user.email, row["user_id"])
+    return User(
+        user.username,
+        user.first_name,
+        user.last_name,
+        user.email,
+        user.registration_time,
+        row["user_id"],
+    )
 
 
 async def fetch_random_users(amount: int, pool: Pool) -> Iterator[User]:
     sql = """
     SELECT
         user_id,
+        username,
         first_name,
         last_name,
-        email
+        email,
+        registration_time
     FROM "user" TABLESAMPLE BERNOULLI(1)
     LIMIT $1;
     """
@@ -60,9 +88,11 @@ async def fetch_random_users(amount: int, pool: Pool) -> Iterator[User]:
 
         return (
             User(
+                row["username"],
                 row["first_name"],
                 row["last_name"],
                 row["email"],
+                row["registration_time"],
                 user_id=row["user_id"],
             )
             for row in rows
