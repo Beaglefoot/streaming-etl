@@ -97,6 +97,22 @@ services:
       - kafka
     command: ["wait-for-it.sh", "kafka:29092", "-t", "10", "--", "/etc/confluent/docker/run"]
 
+  staging-db:
+    image: postgres:14
+    hostname: staging-db
+    ports:
+      - 5433:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - ./services/staging-db/init-scripts:/docker-entrypoint-initdb.d
+      - staging_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      retries: 5
+
 
 volumes:
   app_db_data:
@@ -106,4 +122,7 @@ volumes:
     driver: local
 
   kafka_data:
+    driver: local
+
+  staging_db_data:
     driver: local
