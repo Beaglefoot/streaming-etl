@@ -2,7 +2,7 @@
 
 SUBJECT_PREFIX=app-db.public
 
-curl -s localhost:8081/subjects?subjectPrefix=$SUBJECT_PREFIX | jq '.[]' | tr -d '"' | \
+curl -s $SCHEMA_REGISTRY_URL/subjects?subjectPrefix=$SUBJECT_PREFIX | jq '.[]' | tr -d '"' | \
 while read topic; do
     model_name=$(echo ${topic/#$SUBJECT_PREFIX.} | sed -E 's/-(value|key)$//')
 

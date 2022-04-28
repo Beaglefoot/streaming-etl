@@ -1,37 +1,19 @@
 from typing import Dict, Iterable, List, Generator, Tuple
 
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer, ConsumerRecord, TopicPartition
-from schema_registry.client import AsyncSchemaRegistryClient
 
 from models.generated.call import AppDbPublicCallEnvelope
 from models.test import TestCallModel
-from modules.utils import get_deserialize_fn
+from modules.env import BOOTSTRAP_SERVERS, GROUP_ID
+from modules.utils import ensure_schema_exists, get_deserialize_fn
 
 IN_TOPIC = "app-db.public.call"
-GROUP_ID = "transformer"
 OUT_TOPIC = "test_call"
 TRANSACTIONAL_ID = "call-tran"
-BOOTSTRAP_SERVERS = "localhost:9092"
-SCHEMA_REGISTRY_URL = "http://localhost:8081"
 
 POLL_TIMEOUT = 5_000
 
 CallRecord = ConsumerRecord[bytes, AppDbPublicCallEnvelope]
-
-
-async def ensure_test_call_schema_exists() -> None:
-    client = AsyncSchemaRegistryClient(SCHEMA_REGISTRY_URL)
-
-    schema = await client.check_version(
-        subject=OUT_TOPIC, schema=TestCallModel.schema_json(), schema_type="JSON"
-    )
-
-    if schema:
-        return
-
-    await client.register(
-        subject=OUT_TOPIC, schema=TestCallModel.schema_json(), schema_type="JSON"
-    )
 
 
 def process_batch(
@@ -57,7 +39,7 @@ def process_batch(
 
 
 async def process_call() -> None:
-    await ensure_test_call_schema_exists()
+    await ensure_schema_exists(TestCallModel, OUT_TOPIC)
 
     consumer = AIOKafkaConsumer(
         IN_TOPIC,
@@ -70,7 +52,7 @@ async def process_call() -> None:
     )
 
     producer = AIOKafkaProducer(
-        bootstrap_servers="localhost:9092", transactional_id=TRANSACTIONAL_ID
+        bootstrap_servers=BOOTSTRAP_SERVERS, transactional_id=TRANSACTIONAL_ID
     )
 
     batch_count = 0
