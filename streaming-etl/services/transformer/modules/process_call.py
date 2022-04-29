@@ -5,7 +5,7 @@ from aiokafka import AIOKafkaConsumer, AIOKafkaProducer, ConsumerRecord, TopicPa
 from models.generated.call import AppDbPublicCallEnvelope
 from models.test import TestCallModel
 from modules.env import BOOTSTRAP_SERVERS, GROUP_ID
-from modules.utils import ensure_schema_exists, get_deserialize_fn
+from modules.utils import get_schema_id, get_deserialize_fn
 
 IN_TOPIC = "app-db.public.call"
 OUT_TOPIC = "test_call"
@@ -39,7 +39,7 @@ def process_batch(
 
 
 async def process_call() -> None:
-    await ensure_schema_exists(TestCallModel, OUT_TOPIC)
+    await get_schema_id(TestCallModel, OUT_TOPIC)
 
     consumer = AIOKafkaConsumer(
         IN_TOPIC,

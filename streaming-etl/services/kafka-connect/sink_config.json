@@ -1,0 +1,16 @@
+{
+  "name": "dwh-connector",
+  "config": {
+    "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+    "name": "dwh-connector",
+    "topics": "user_dim",
+    "connection.url": "jdbc:postgresql://dwh:5432/postgres?ssl=false",
+    "connection.user": "postgres",
+    "connection.password": "postgres",
+    "auto.create": false,
+    "tasks.max": 1,
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "io.confluent.connect.json.JsonSchemaConverter",
+    "value.converter.schema.registry.url": "http://schema-registry:8081"
+  }
+}

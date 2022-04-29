@@ -1,15 +1,22 @@
+from datetime import datetime
 from typing import AsyncGenerator, Dict, Iterable, List, Tuple
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer, ConsumerRecord, TopicPartition
 from asyncpg import Pool
+from pydantic import BaseModel
 from models.generated.user import AppDbPublicUserEnvelope
 from models.user_dim import UserDim
 from modules.env import BOOTSTRAP_SERVERS, GROUP_ID
 from modules.staging_db import fetch_user_key
-from modules.utils import ensure_schema_exists, get_deserialize_fn
+from modules.utils import (
+    get_schema_id,
+    get_deserialize_fn,
+    get_serialize_fn,
+    get_timestamp,
+)
 
 
 IN_TOPIC = "app-db.public.user"
-OUT_TOPIC = "dwh.public.user_dim"
+OUT_TOPIC = "user_dim"
 TRANSACTIONAL_ID = "user-transaction"
 
 POLL_TIMEOUT = 5_000
@@ -19,7 +26,7 @@ UserRecord = ConsumerRecord[bytes, AppDbPublicUserEnvelope]
 
 async def process_batch(
     msgs: Iterable[UserRecord], pool: Pool
-) -> AsyncGenerator[Tuple[bytes, bytes, int], None]:
+) -> AsyncGenerator[Tuple[bytes, BaseModel, int], None]:
     for m in msgs:
         if not (m.key and m.value and m.value.after):
             continue
@@ -44,21 +51,26 @@ async def process_batch(
 
         new_value = UserDim(
             user_key=user_key,
+            user_id=user.user_id,
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
             email=user.email,
-            registration_time=user.registration_time,
-            row_effective_time=user.registration_time,
-            row_expiration_time=None,
+            registration_time=datetime.fromtimestamp(
+                get_timestamp(user.registration_time)
+            ),
+            row_effective_time=datetime.fromtimestamp(
+                get_timestamp(user.registration_time)
+            ),
+            row_expiration_time=datetime.strptime("9999-01-01", "%Y-%m-%d"),
             current_row_indicator="Current",
         )
 
-        yield (m.key, new_value.json().encode(), m.timestamp)
+        yield (m.key, new_value, m.timestamp)
 
 
 async def process_user(pool: Pool) -> None:
-    await ensure_schema_exists(UserDim, OUT_TOPIC)
+    out_schema_id = await get_schema_id(UserDim, OUT_TOPIC)
 
     consumer = AIOKafkaConsumer(
         IN_TOPIC,
@@ -71,7 +83,9 @@ async def process_user(pool: Pool) -> None:
     )
 
     producer = AIOKafkaProducer(
-        bootstrap_servers=BOOTSTRAP_SERVERS, transactional_id=TRANSACTIONAL_ID
+        bootstrap_servers=BOOTSTRAP_SERVERS,
+        transactional_id=TRANSACTIONAL_ID,
+        value_serializer=get_serialize_fn(out_schema_id),
     )
 
     batch_count = 0

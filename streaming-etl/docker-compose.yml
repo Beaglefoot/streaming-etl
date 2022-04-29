@@ -86,6 +86,7 @@ services:
   schema-registry:
     image: confluentinc/cp-schema-registry:7.1.1
     hostname: schema-registry
+    restart: on-failure
     ports:
       - 8081:8081
     volumes:
@@ -95,7 +96,7 @@ services:
       - SCHEMA_REGISTRY_HOST_NAME=schema-registry
     depends_on:
       - kafka
-    command: ["wait-for-it.sh", "kafka:29092", "-t", "10", "--", "/etc/confluent/docker/run"]
+    command: ["wait-for-it.sh", "kafka:29092", "-t", "30", "--", "/etc/confluent/docker/run"]
 
   staging-db:
     image: postgres:14
@@ -113,6 +114,22 @@ services:
       interval: 5s
       retries: 5
 
+  dwh:
+    image: postgres:14
+    hostname: dwh
+    ports:
+      - 5434:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - ./services/dwh/init-scripts:/docker-entrypoint-initdb.d
+      - dwh_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      retries: 5
+
 
 volumes:
   app_db_data:
@@ -125,4 +142,7 @@ volumes:
     driver: local
 
   staging_db_data:
+    driver: local
+
+  dwh_data:
     driver: local
