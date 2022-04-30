@@ -68,3 +68,31 @@ async def fetch_user_key(user_id: int, pool: Pool) -> int:
             raise NoValueError
 
         return user_key
+
+
+async def fetch_room_key(room_id: int, pool: Pool) -> int:
+    update = """
+    UPDATE room_lookup
+    SET room_key = nextval('room_key_seq')
+    WHERE room_id = $1
+    RETURNING room_key
+    """
+
+    insert = """
+    INSERT INTO room_lookup (room_id)
+    VALUES ($1)
+    RETURNING room_key
+    """
+
+    async with pool.acquire() as db_conn:
+        db_conn: Connection
+
+        room_key = await db_conn.fetchval(update, room_id)
+
+        if room_key == None:
+            room_key = await db_conn.fetchval(insert, room_id)
+
+        if room_key == None:
+            raise NoValueError
+
+        return room_key

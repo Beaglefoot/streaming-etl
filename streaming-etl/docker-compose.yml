@@ -19,6 +19,7 @@ services:
       retries: 5
 
   data-generator:
+    entrypoint: ["echo", "Service data-generator is disabled"]
     build:
       context: ./services/data-generator
     hostname: data-generator
@@ -64,6 +65,8 @@ services:
     hostname: kafka-connect
     ports:
       - 8083:8083
+    volumes:
+      - ./wait-for-it.sh:/usr/bin/wait-for-it.sh
     environment:
       - CONNECT_BOOTSTRAP_SERVERS=kafka:29092
       - CONNECT_GROUP_ID=1
@@ -82,6 +85,7 @@ services:
       - kafka
       - schema-registry
       - app-db
+    command: ["wait-for-it.sh", "kafka:29092", "-t", "30", "--", "/etc/confluent/docker/run"]
 
   schema-registry:
     image: confluentinc/cp-schema-registry:7.1.1

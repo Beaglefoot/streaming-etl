@@ -19,7 +19,7 @@ INSERT INTO date_dim (
             WHEN 5 THEN 'Friday'
             WHEN 6 THEN 'Saturday'
         END AS day_of_week,
-        to_char(ts, 'Month') AS calendar_month,
+        trim(to_char(ts, 'Month')) AS calendar_month,
         CASE date_part('dow', ts)
             WHEN 0 THEN 'Weekend'
             WHEN 6 THEN 'Weekend'
