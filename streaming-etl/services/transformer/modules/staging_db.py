@@ -43,10 +43,11 @@ async def get_db_connection_pool(size: int) -> Pool:
 
 
 async def fetch_user_key(user_id: int, pool: Pool) -> int:
-    select = """
-    SELECT user_key
-    FROM user_lookup
+    update = """
+    UPDATE user_lookup
+    SET user_key = nextval('user_key_seq')
     WHERE user_id = $1
+    RETURNING user_key
     """
 
     insert = """
@@ -58,7 +59,7 @@ async def fetch_user_key(user_id: int, pool: Pool) -> int:
     async with pool.acquire() as db_conn:
         db_conn: Connection
 
-        user_key = await db_conn.fetchval(select, user_id)
+        user_key = await db_conn.fetchval(update, user_id)
 
         if user_key == None:
             user_key = await db_conn.fetchval(insert, user_id)

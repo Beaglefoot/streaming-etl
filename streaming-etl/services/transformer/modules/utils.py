@@ -1,5 +1,5 @@
 import json
-from typing import Callable, Type
+from typing import Callable, Optional, Type
 from pydantic import BaseModel
 from schema_registry.client import AsyncSchemaRegistryClient
 
@@ -17,7 +17,12 @@ def get_serialize_fn(schema_id: int) -> Callable[[BaseModel], bytes]:
 
 
 def get_deserialize_fn(model_class: Type[BaseModel]) -> Callable[[bytes], BaseModel]:
-    def deserialize(data: bytes) -> BaseModel:
+    def deserialize(data: Optional[bytes]) -> BaseModel:
+        # Tombstone event
+        # https://debezium.io/documentation/reference/1.9/connectors/postgresql.html#postgresql-delete-events
+        if data == None:
+            return model_class()
+
         # https://docs.confluent.io/platform/current/schema-registry/serdes-develop/index.html#wire-format
         return model_class(**json.loads(data[5:]))
 

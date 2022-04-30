@@ -5,9 +5,9 @@ CREATE TABLE user_dim (
     first_name varchar(40) NOT NULL,
     last_name varchar(40) NOT NULL,
     email varchar(40) NOT NULL,
-    registration_time varchar(19) NOT NULL,
-    row_effective_time varchar(19) NOT NULL,
-    row_expiration_time varchar(19) DEFAULT '9999-01-01T00:00:00' NOT NULL,
+    registration_time varchar(26) NOT NULL,
+    row_effective_time varchar(26) NOT NULL,
+    row_expiration_time varchar(26) DEFAULT '9999-01-01T00:00:00' NOT NULL,
     current_row_indicator varchar(7) NOT NULL
 );
 

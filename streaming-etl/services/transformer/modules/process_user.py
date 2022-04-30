@@ -28,26 +28,40 @@ async def process_batch(
     msgs: Iterable[UserRecord], pool: Pool
 ) -> AsyncGenerator[Tuple[bytes, BaseModel, int], None]:
     for m in msgs:
-        if not (m.key and m.value and m.value.after):
+        if not (m.key and m.value):
             continue
 
-        user = m.value.after
+        if m.value.op == "d":
+            user = m.value.before
+        else:
+            user = m.value.after
 
-        if not (
-            user.user_id
-            and user.first_name
-            and user.last_name
-            and user.registration_time
-            and user.email
-            and user.username
+        if user == None:
+            continue
+
+        if (
+            user.user_id == None
+            or user.first_name == None
+            or user.last_name == None
+            or user.registration_time == None
+            or user.email == None
+            or user.username == None
         ):
+            print("User record is invalid:", user)
             continue
+
+        if m.value.op == "d":
+            row_effective_time = datetime.now()
+            row_expiration_time = datetime.now()
+            current_row_indicator = "Expired"
+        else:
+            row_effective_time = datetime.fromtimestamp(
+                get_timestamp(user.registration_time)
+            )
+            row_expiration_time = datetime.strptime("9999-01-01", "%Y-%m-%d")
+            current_row_indicator = "Current"
 
         user_key = await fetch_user_key(user.user_id, pool)
-
-        # TODO: handle updates and deletes
-        if m.value.op != "c":
-            continue
 
         new_value = UserDim(
             user_key=user_key,
@@ -59,11 +73,9 @@ async def process_batch(
             registration_time=datetime.fromtimestamp(
                 get_timestamp(user.registration_time)
             ),
-            row_effective_time=datetime.fromtimestamp(
-                get_timestamp(user.registration_time)
-            ),
-            row_expiration_time=datetime.strptime("9999-01-01", "%Y-%m-%d"),
-            current_row_indicator="Current",
+            row_effective_time=row_effective_time,
+            row_expiration_time=row_expiration_time,
+            current_row_indicator=current_row_indicator,
         )
 
         yield (m.key, new_value, m.timestamp)
