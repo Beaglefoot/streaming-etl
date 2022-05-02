@@ -25,3 +25,24 @@ CREATE TRIGGER expire_previous_room_row BEFORE INSERT ON room_dim
     FOR EACH ROW EXECUTE FUNCTION expire_previous_room_row();
 
 CREATE INDEX IF NOT EXISTS room_dim_room_id_idx ON room_dim (room_id);
+
+-- Default row which enforces referential integrity and signifies no room 
+INSERT INTO room_dim (
+    room_key,
+    room_id,
+    title,
+    description,
+    foundation_time,
+    row_effective_time,
+    row_expiration_time,
+    current_row_indicator
+) VALUES (
+    1,
+    0,
+    '',
+    '',
+    '9999-01-01T00:00:00',
+    '9999-01-01T00:00:00',
+    '9999-01-01T00:00:00',
+    ''
+);
