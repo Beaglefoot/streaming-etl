@@ -1,5 +1,6 @@
 from datetime import datetime
-from typing import AsyncGenerator, Dict, Iterable, List, Tuple
+import functools
+from typing import Any, AsyncGenerator, Callable, Coroutine, Dict, Iterable, List, Tuple
 from aiokafka import AIOKafkaConsumer, AIOKafkaProducer, ConsumerRecord, TopicPartition
 from asyncpg import Pool
 from pydantic import BaseModel
@@ -7,7 +8,7 @@ from models.generated.room import AppDbPublicRoomEnvelope
 from models.room_dim import RoomDim
 from modules.env import BOOTSTRAP_SERVERS, GROUP_ID
 from modules.logger import LOGGER
-from modules.staging_db import fetch_room_key
+from modules.staging_db import generate_room_key
 from modules.utils import (
     get_schema_id,
     get_deserialize_fn,
@@ -18,9 +19,9 @@ from modules.utils import (
 
 IN_TOPIC = "app-db.public.room"
 OUT_TOPIC = "room_dim"
-TRANSACTIONAL_ID = "room-transaction"
+TRANSACTIONAL_ID = "room_transaction"
 
-POLL_TIMEOUT = 5_000
+POLL_TIMEOUT = 10000
 
 RoomRecord = ConsumerRecord[bytes, AppDbPublicRoomEnvelope]
 
@@ -60,7 +61,7 @@ async def process_batch(
             row_expiration_time = datetime.strptime("9999-01-01", "%Y-%m-%d")
             current_row_indicator = "Current"
 
-        room_key = await fetch_room_key(room.room_id, pool)
+        room_key = await generate_room_key(room.room_id, pool)
 
         new_value = RoomDim(
             room_key=room_key,
@@ -76,25 +77,9 @@ async def process_batch(
         yield (m.key, new_value, m.timestamp)
 
 
-async def process_room(pool: Pool) -> None:
-    out_schema_id = await get_schema_id(RoomDim, OUT_TOPIC)
-
-    consumer = AIOKafkaConsumer(
-        IN_TOPIC,
-        bootstrap_servers=BOOTSTRAP_SERVERS,
-        group_id=GROUP_ID,
-        enable_auto_commit=False,
-        auto_offset_reset="earliest",
-        isolation_level="read_committed",
-        value_deserializer=get_deserialize_fn(AppDbPublicRoomEnvelope),
-    )
-
-    producer = AIOKafkaProducer(
-        bootstrap_servers=BOOTSTRAP_SERVERS,
-        transactional_id=TRANSACTIONAL_ID,
-        value_serializer=get_serialize_fn(out_schema_id),
-    )
-
+async def _process_room(
+    consumer: AIOKafkaConsumer, producer: AIOKafkaProducer, pool: Pool
+) -> None:
     batch_count = 0
 
     async with consumer, producer:
@@ -126,3 +111,31 @@ async def process_room(pool: Pool) -> None:
                     )
 
                 await producer.send_offsets_to_transaction(commit_offsets, GROUP_ID)
+
+
+async def init_process_room_fn() -> Callable[[Pool], Coroutine[Any, Any, None]]:
+    LOGGER.info("Initializing %s topic processor", IN_TOPIC)
+
+    out_schema_id = await get_schema_id(RoomDim, OUT_TOPIC)
+
+    consumer = AIOKafkaConsumer(
+        IN_TOPIC,
+        bootstrap_servers=BOOTSTRAP_SERVERS,
+        group_id=GROUP_ID,
+        enable_auto_commit=False,
+        auto_offset_reset="earliest",
+        isolation_level="read_committed",
+        value_deserializer=get_deserialize_fn(AppDbPublicRoomEnvelope),
+    )
+
+    producer = AIOKafkaProducer(
+        bootstrap_servers=BOOTSTRAP_SERVERS,
+        transactional_id=TRANSACTIONAL_ID,
+        value_serializer=get_serialize_fn(out_schema_id),
+    )
+
+    @functools.wraps(_process_room)
+    async def wrapper(pool: Pool) -> None:
+        return await _process_room(consumer, producer, pool)
+
+    return wrapper

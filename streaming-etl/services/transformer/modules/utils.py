@@ -1,5 +1,6 @@
+import asyncio
 import json
-from typing import Callable, Optional, Type
+from typing import Any, Callable, Coroutine, Optional, Type, TypeVar
 from pydantic import BaseModel
 from schema_registry.client import AsyncSchemaRegistryClient
 
@@ -48,3 +49,11 @@ async def get_schema_id(model: Type[BaseModel], topic: str) -> int:
 
 def get_timestamp(microseconds: int) -> float:
     return microseconds / 1000000
+
+
+T = TypeVar("T")
+
+
+async def with_delay(coro: Coroutine[Any, Any, T], delay: int) -> T:
+    await asyncio.sleep(delay)
+    return await coro
