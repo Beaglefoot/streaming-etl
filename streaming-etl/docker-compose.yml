@@ -133,6 +133,27 @@ services:
       interval: 5s
       retries: 5
 
+  transformer:
+    build:
+      context: ./services/transformer
+    hostname: data-generator
+    volumes:
+      - ./wait-for-it.sh:/usr/bin/wait-for-it.sh
+    environment:
+      - POSTGRES_HOST=staging-db
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - KAFKA_GROUP_ID=transformer
+      - SCHEMA_REGISTRY_URL=http://schema-registry:8081
+    depends_on:
+      - kafka
+      - kafka-connect
+      - schema-registry
+    command: ["wait-for-it.sh", "schema-registry:8081", "-t", "60", "--", "poetry",  "run", "python", "main.py"]
+
 
 volumes:
   app_db_data:
