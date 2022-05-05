@@ -3,7 +3,7 @@
   "config": {
     "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
     "name": "dwh-connector",
-    "topics": "user_dim,room_dim",
+    "topics": "user_dim,room_dim,participant_bridge,participant_group_dim,call_fact",
     "connection.url": "jdbc:postgresql://dwh:5432/postgres?ssl=false",
     "connection.user": "postgres",
     "connection.password": "postgres",
